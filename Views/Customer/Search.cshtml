@@ -1,0 +1,27 @@
+@{
+    ViewData["Title"] = "Customer Search";
+}
+
+<section class="terminal-panel">
+    <div class="screen-header">
+        <span>TRANSACTION: CUST</span>
+        <span>SCREEN 1 OF 3</span>
+    </div>
+
+    <h1>Customer Search</h1>
+
+    @if (ViewBag.ErrorMessage is not null)
+    {
+        <p class="error">@ViewBag.ErrorMessage</p>
+    }
+
+    <form method="post" asp-action="Details" class="screen-form">
+        <label for="customerId">Customer ID</label>
+        <input id="customerId" name="customerId" value="10001" maxlength="10" autofocus />
+
+        <div class="actions">
+            <button type="submit">Enter = Search</button>
+            <a asp-action="Search">PF3 = Clear</a>
+        </div>
+    </form>
+</section>

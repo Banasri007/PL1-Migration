@@ -1,0 +1,15 @@
+@{
+    var fileName = (string)ViewBag.FileName;
+    var content = (string)ViewBag.Content;
+}
+
+<section class="document-viewer">
+    <div class="document-toolbar">
+        <div>
+            <p class="eyebrow">Deliverable</p>
+            <h1>@fileName</h1>
+        </div>
+        <a asp-action="Index">Back to Dashboard</a>
+    </div>
+    <pre>@content</pre>
+</section>

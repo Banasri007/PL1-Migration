@@ -1,0 +1,30 @@
+@model Pl1MigrationDemo.Models.CustomerUpdateResult
+
+<section class="terminal-panel">
+    <div class="screen-header">
+        <span>TRANSACTION: CUST</span>
+        <span>SCREEN 3 OF 3</span>
+    </div>
+
+    <h1>Update Confirmation</h1>
+
+    <dl class="details-grid">
+        <dt>Customer ID</dt>
+        <dd>@Model.Customer.CustomerId</dd>
+
+        <dt>Name</dt>
+        <dd>@Model.Customer.Name</dd>
+
+        <dt>Old Status</dt>
+        <dd>@Model.OldStatus</dd>
+
+        <dt>New Status</dt>
+        <dd>@Model.NewStatus</dd>
+    </dl>
+
+    <p class="success">Update completed successfully.</p>
+
+    <div class="actions">
+        <a asp-action="Search">Enter = New Search</a>
+    </div>
+</section>

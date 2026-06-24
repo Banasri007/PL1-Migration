@@ -1,0 +1,18 @@
+## .NET
+bin/
+obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+## IDE
+.vs/
+.idea/
+
+## Runtime workflow outputs (generated per run)
+migration-workflow/runs/
+
+## OS
+Thumbs.db
+.DS_Store

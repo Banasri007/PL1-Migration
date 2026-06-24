@@ -1,0 +1,15 @@
+/* PL/I CICS transaction screen 3: Update Confirmation */
+
+CUSTCONF-SCREEN:
+   PUT SKIP LIST('--------------------------------------------------');
+   PUT SKIP LIST('              UPDATE CONFIRMATION');
+   PUT SKIP LIST('--------------------------------------------------');
+   PUT SKIP LIST('');
+   PUT SKIP LIST('Customer ID : ' || CUSTOMER_ID);
+   PUT SKIP LIST('Old Status  : ' || OLD_STATUS);
+   PUT SKIP LIST('New Status  : ' || NEW_STATUS);
+   PUT SKIP LIST('');
+   PUT SKIP LIST('Update completed successfully.');
+   PUT SKIP LIST('');
+   PUT SKIP LIST('PF3=Exit                         Enter=New Search');
+   PUT SKIP LIST('--------------------------------------------------');

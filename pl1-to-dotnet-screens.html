@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PL/I to .NET Screen Conversion</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            background: #f4f6f8;
+            color: #17202a;
+            font-family: Arial, Helvetica, sans-serif;
+        }
+
+        header {
+            padding: 24px;
+            background: #17202a;
+            color: #ffffff;
+        }
+
+        h1,
+        h2,
+        h3 {
+            margin: 0;
+            letter-spacing: 0;
+        }
+
+        h1 {
+            font-size: 28px;
+        }
+
+        .subtitle {
+            margin: 8px 0 0;
+            color: #d6dee6;
+        }
+
+        .page {
+            width: min(1240px, 100%);
+            margin: 0 auto;
+            padding: 24px;
+        }
+
+        .screen-pair {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 28px;
+        }
+
+        .panel {
+            background: #ffffff;
+            border: 1px solid #d9e0e7;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .panel-title {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 14px 16px;
+            background: #e9eef3;
+            border-bottom: 1px solid #d9e0e7;
+            font-weight: 700;
+        }
+
+        .badge {
+            color: #49606f;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .mainframe-screen {
+            min-height: 390px;
+            padding: 20px;
+            background: #06150d;
+            color: #62ff9a;
+            font-family: Consolas, "Courier New", monospace;
+            font-size: 16px;
+            line-height: 1.55;
+            white-space: pre;
+            overflow-x: auto;
+        }
+
+        .dotnet-screen {
+            min-height: 390px;
+            padding: 24px;
+            background: #ffffff;
+        }
+
+        .web-card {
+            width: min(520px, 100%);
+            margin: 0 auto;
+            border: 1px solid #cbd5df;
+            border-radius: 8px;
+            overflow: hidden;
+            background: #ffffff;
+        }
+
+        .web-header {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 12px 16px;
+            background: #263640;
+            color: #ffffff;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .web-body {
+            padding: 24px;
+        }
+
+        .web-body h3 {
+            margin-bottom: 24px;
+            text-align: center;
+            color: #17202a;
+            text-transform: uppercase;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #384b59;
+            font-weight: 700;
+        }
+
+        input {
+            width: 100%;
+            height: 40px;
+            padding: 8px 10px;
+            border: 1px solid #a8b6c3;
+            border-radius: 4px;
+            font: inherit;
+        }
+
+        .field {
+            margin-bottom: 16px;
+        }
+
+        .data-row {
+            display: grid;
+            grid-template-columns: 130px 1fr;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .data-row span:first-child {
+            color: #526879;
+            font-weight: 700;
+        }
+
+        .actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 24px;
+        }
+
+        button,
+        .link-button {
+            min-height: 38px;
+            padding: 8px 14px;
+            border: 1px solid #263640;
+            border-radius: 4px;
+            background: #263640;
+            color: #ffffff;
+            font: inherit;
+            text-decoration: none;
+        }
+
+        .link-button {
+            background: #ffffff;
+            color: #263640;
+        }
+
+        .success {
+            padding: 12px;
+            border: 1px solid #58a773;
+            border-radius: 4px;
+            background: #edf8f1;
+            color: #1f6b38;
+            font-weight: 700;
+        }
+
+        .message {
+            margin: 0 0 16px;
+            padding: 10px 12px;
+            border-radius: 4px;
+            background: #fff6df;
+            color: #7a5600;
+            font-weight: 700;
+        }
+
+        .mapping {
+            margin-top: 12px;
+            padding: 14px 16px;
+            border-top: 1px solid #d9e0e7;
+            color: #3f5363;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        @media (max-width: 900px) {
+            .screen-pair {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>PL/I Screen to .NET Screen Conversion</h1>
+        <p class="subtitle">A visual comparison of the original CICS/BMS transaction screens and the converted ASP.NET Core MVC screens.</p>
+    </header>
+
+    <main class="page">
+        <section class="screen-pair">
+            <article class="panel">
+                <div class="panel-title">
+                    <span>Original PL/I / CICS Screen</span>
+                    <span class="badge">CUSTSRCH</span>
+                </div>
+                <div class="mainframe-screen">--------------------------------------------------
+              CUSTOMER SEARCH
+--------------------------------------------------
+
+Transaction : CUST
+Program     : CUSTPGM
+Map         : CUSTSRCH
+
+Customer ID : ________
+
+
+
+
+PF3=Exit                         Enter=Search
+--------------------------------------------------</div>
+                <div class="mapping">
+                    BMS map field <strong>CUSTID-I</strong> is received by the PL/I program and used to read the customer record.
+                </div>
+            </article>
+
+            <article class="panel">
+                <div class="panel-title">
+                    <span>Converted .NET Screen</span>
+                    <span class="badge">Customer/Search</span>
+                </div>
+                <div class="dotnet-screen">
+                    <div class="web-card">
+                        <div class="web-header">
+                            <span>TRANSACTION: CUST</span>
+                            <span>SCREEN 1 OF 3</span>
+                        </div>
+                        <div class="web-body">
+                            <h3>Customer Search</h3>
+                            <div class="field">
+                                <label for="customerId">Customer ID</label>
+                                <input id="customerId" value="10001" />
+                            </div>
+                            <div class="actions">
+                                <button id="searchButton" type="button">Search</button>
+                                <button id="clearButton" type="button" class="link-button">Clear</button>
+                            </div>
+                            <p id="searchMessage" class="message" hidden></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="mapping">
+                    Razor form posts <strong>customerId</strong> to <strong>CustomerController.Details</strong>.
+                </div>
+            </article>
+        </section>
+
+        <section class="screen-pair">
+            <article class="panel">
+                <div class="panel-title">
+                    <span>Original PL/I / CICS Screen</span>
+                    <span class="badge">CUSTDTL</span>
+                </div>
+                <div class="mainframe-screen">--------------------------------------------------
+              CUSTOMER DETAILS
+--------------------------------------------------
+
+Customer ID : 10001
+Name        : JOHN SMITH
+Status      : ACTIVE
+Balance     : 2500.75
+
+New Status  : ________
+
+
+
+PF3=Back                         PF5=Update
+--------------------------------------------------</div>
+                <div class="mapping">
+                    PL/I populates output fields from DB2/VSAM, then receives <strong>NEWSTATUS-I</strong> when the user presses PF5.
+                </div>
+            </article>
+
+            <article class="panel">
+                <div class="panel-title">
+                    <span>Converted .NET Screen</span>
+                    <span class="badge">Customer/Details</span>
+                </div>
+                <div class="dotnet-screen">
+                    <div class="web-card">
+                        <div class="web-header">
+                            <span>TRANSACTION: CUST</span>
+                            <span>SCREEN 2 OF 3</span>
+                        </div>
+                        <div class="web-body">
+                            <h3>Customer Details</h3>
+                            <div class="data-row"><span>Customer ID</span><span id="detailsCustomerId">10001</span></div>
+                            <div class="data-row"><span>Name</span><span id="detailsName">JOHN SMITH</span></div>
+                            <div class="data-row"><span>Status</span><span id="detailsStatus">ACTIVE</span></div>
+                            <div class="data-row"><span>Balance</span><span id="detailsBalance">$2,500.75</span></div>
+                            <div class="field">
+                                <label for="newStatus">New Status</label>
+                                <input id="newStatus" value="CLOSED" />
+                            </div>
+                            <div class="actions">
+                                <button id="updateButton" type="button">Update</button>
+                                <button id="backButton" type="button" class="link-button">Back</button>
+                            </div>
+                            <p id="updateMessage" class="message" hidden></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="mapping">
+                    The MVC view posts <strong>customerId</strong> and <strong>newStatus</strong> to <strong>CustomerController.Update</strong>.
+                </div>
+            </article>
+        </section>
+
+        <section class="screen-pair">
+            <article class="panel">
+                <div class="panel-title">
+                    <span>Original PL/I / CICS Screen</span>
+                    <span class="badge">CUSTCONF</span>
+                </div>
+                <div class="mainframe-screen">--------------------------------------------------
+              UPDATE CONFIRMATION
+--------------------------------------------------
+
+Customer ID : 10001
+Old Status  : ACTIVE
+New Status  : CLOSED
+
+Update completed successfully.
+
+
+
+PF3=Exit                         Enter=New Search
+--------------------------------------------------</div>
+                <div class="mapping">
+                    PL/I sends the confirmation BMS map after the update SQL statement completes.
+                </div>
+            </article>
+
+            <article class="panel">
+                <div class="panel-title">
+                    <span>Converted .NET Screen</span>
+                    <span class="badge">Customer/Confirmation</span>
+                </div>
+                <div class="dotnet-screen">
+                    <div class="web-card">
+                        <div class="web-header">
+                            <span>TRANSACTION: CUST</span>
+                            <span>SCREEN 3 OF 3</span>
+                        </div>
+                        <div class="web-body">
+                            <h3>Update Confirmation</h3>
+                            <div class="data-row"><span>Customer ID</span><span id="confirmationCustomerId">10001</span></div>
+                            <div class="data-row"><span>Old Status</span><span id="confirmationOldStatus">ACTIVE</span></div>
+                            <div class="data-row"><span>New Status</span><span id="confirmationNewStatus">CLOSED</span></div>
+                            <p class="success">Update completed successfully.</p>
+                            <div class="actions">
+                                <button id="newSearchButton" type="button" class="link-button">New Search</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="mapping">
+                    The confirmation Razor view displays the updated customer model returned by the service layer.
+                </div>
+            </article>
+        </section>
+    </main>
+    <script>
+        const customers = {
+            "10001": { customerId: "10001", name: "JOHN SMITH", status: "ACTIVE", balance: 2500.75 },
+            "10002": { customerId: "10002", name: "MARY JONES", status: "ACTIVE", balance: 5100.00 },
+            "10003": { customerId: "10003", name: "DAVID BROWN", status: "CLOSED", balance: 0.00 }
+        };
+
+        let selectedCustomer = customers["10001"];
+
+        const money = new Intl.NumberFormat("en-US", {
+            style: "currency",
+            currency: "USD"
+        });
+
+        function setMessage(id, text) {
+            const element = document.getElementById(id);
+            element.textContent = text;
+            element.hidden = text.length === 0;
+        }
+
+        function renderDetails(customer) {
+            document.getElementById("detailsCustomerId").textContent = customer.customerId;
+            document.getElementById("detailsName").textContent = customer.name;
+            document.getElementById("detailsStatus").textContent = customer.status;
+            document.getElementById("detailsBalance").textContent = money.format(customer.balance);
+            document.getElementById("newStatus").value = customer.status;
+        }
+
+        function renderConfirmation(customer, oldStatus, newStatus) {
+            document.getElementById("confirmationCustomerId").textContent = customer.customerId;
+            document.getElementById("confirmationOldStatus").textContent = oldStatus;
+            document.getElementById("confirmationNewStatus").textContent = newStatus;
+        }
+
+        document.getElementById("searchButton").addEventListener("click", () => {
+            const customerId = document.getElementById("customerId").value.trim();
+            const customer = customers[customerId];
+
+            if (!customer) {
+                setMessage("searchMessage", "Customer not found. Try 10001, 10002, or 10003.");
+                return;
+            }
+
+            selectedCustomer = customer;
+            renderDetails(customer);
+            setMessage("searchMessage", `Customer ${customerId} found. Details screen updated.`);
+            setMessage("updateMessage", "");
+        });
+
+        document.getElementById("updateButton").addEventListener("click", () => {
+            if (!selectedCustomer) {
+                setMessage("updateMessage", "Search for a customer before updating status.");
+                return;
+            }
+
+            const newStatus = document.getElementById("newStatus").value.trim().toUpperCase();
+
+            if (!newStatus) {
+                setMessage("updateMessage", "New status is required.");
+                return;
+            }
+
+            const oldStatus = selectedCustomer.status;
+            selectedCustomer.status = newStatus;
+            renderDetails(selectedCustomer);
+            renderConfirmation(selectedCustomer, oldStatus, newStatus);
+            setMessage("updateMessage", `Status changed from ${oldStatus} to ${newStatus}. Confirmation screen updated.`);
+        });
+
+        document.getElementById("clearButton").addEventListener("click", () => {
+            document.getElementById("customerId").value = "";
+            setMessage("searchMessage", "");
+        });
+
+        document.getElementById("backButton").addEventListener("click", () => {
+            document.getElementById("customerId").focus();
+        });
+
+        document.getElementById("newSearchButton").addEventListener("click", () => {
+            document.getElementById("customerId").value = "";
+            document.getElementById("customerId").focus();
+            setMessage("searchMessage", "Ready for a new search.");
+            setMessage("updateMessage", "");
+        });
+
+        renderDetails(selectedCustomer);
+    </script>
+</body>
+</html>

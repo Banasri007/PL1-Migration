@@ -1,0 +1,18 @@
+/* PL/I CICS transaction screen 1: Customer Search */
+
+CUSTSRCH-SCREEN:
+   PUT SKIP LIST('--------------------------------------------------');
+   PUT SKIP LIST('              CUSTOMER SEARCH');
+   PUT SKIP LIST('--------------------------------------------------');
+   PUT SKIP LIST('');
+   PUT SKIP LIST('Transaction : CUST');
+   PUT SKIP LIST('Program     : CUSTPGM');
+   PUT SKIP LIST('Map         : CUSTSRCH');
+   PUT SKIP LIST('');
+   PUT SKIP LIST('Customer ID : ________');
+   PUT SKIP LIST('');
+   PUT SKIP LIST('PF3=Exit                         Enter=Search');
+   PUT SKIP LIST('--------------------------------------------------');
+
+/* In a real CICS program this is normally an EXEC CICS SEND MAP
+   against a BMS map, followed by EXEC CICS RECEIVE MAP. */

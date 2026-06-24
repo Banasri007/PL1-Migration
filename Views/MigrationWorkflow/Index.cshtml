@@ -1,0 +1,336 @@
+@model Pl1MigrationDemo.Models.MigrationWorkflowViewModel
+
+<section class="workflow-hero">
+    <div>
+        <p class="eyebrow">PL/I to .NET Migration Studio</p>
+        <h1>Agent Control Room</h1>
+        <p class="hero-copy">Paste a migration request and a PL/I snippet, then watch producer agents and checkpoint agents create, review, fail, remediate, and approve the migration package.</p>
+    </div>
+    <div class="hero-actions">
+        <a href="/Customer/Search">Open Converted App</a>
+        <a href="/MigrationWorkflow/CompareScreens">Compare Screens</a>
+    </div>
+</section>
+
+<section class="workflow-surface">
+    <form id="agentRunForm" class="workflow-intake">
+        <label for="requestText">Migration request</label>
+        <textarea id="requestText" name="requestText" rows="4">@Model.RequestText</textarea>
+
+        <label for="legacyCode">Legacy PL/I or BMS snippet</label>
+        <textarea id="legacyCode" name="legacyCode" rows="8">CUSTSRCH CUSTOMER SEARCH
+CUSTDTL CUSTOMER DETAILS
+CUSTCONF UPDATE CONFIRMATION
+CUSTOMER_ID NAME STATUS BALANCE NEW_STATUS
+PF3=Exit Enter=Search PF5=Update Enter=New Search</textarea>
+
+        <div class="prompt-presets" aria-label="Prompt presets">
+            <button type="button" data-preset="customer">Customer Migration</button>
+            <button type="button" data-preset="employee">Employee Migration</button>
+            <button type="button" data-preset="account">Account Inquiry</button>
+        </div>
+
+        <button type="submit" id="runAgentsButton">Run Agent Workflow</button>
+    </form>
+
+    <div class="run-summary">
+        <span class="summary-number">5</span>
+        <span>Producer agents</span>
+        <span class="summary-number">5</span>
+        <span>Checkpoint agents</span>
+        <span class="summary-number">@Model.Deliverables.Count</span>
+        <span>Stored deliverables</span>
+    </div>
+</section>
+
+<section class="live-run-panel" id="liveRunPanel">
+    <div class="live-run-header">
+        <div>
+            <p class="eyebrow">Live Run</p>
+            <h2 id="runTitle">Waiting for migration request</h2>
+        </div>
+        <span id="runBadge" class="status-pill">Idle</span>
+    </div>
+    <div class="progress-track" id="progressTrack">
+        <span id="progressBar"></span>
+    </div>
+    <div id="agentConsole" class="agent-console">
+        <p>Click Run Agent Workflow to start the producer/checkpoint chain.</p>
+    </div>
+</section>
+
+<section class="workflow-columns generated-output">
+    <div>
+        <h2>Generated Artifact Preview</h2>
+        <div id="artifactPreview" class="deliverable-list">
+            <p class="muted">Run the workflow to generate prompt-specific previews.</p>
+        </div>
+    </div>
+    <div>
+        <h2>Recommended Next Actions</h2>
+        <ol id="nextActions" class="timeline">
+            <li><span>Run a workflow first.</span></li>
+        </ol>
+    </div>
+</section>
+
+<section class="workflow-grid" id="agentStageGrid">
+    @foreach (var stage in Model.Stages)
+    {
+        <article class="agent-stage">
+            <div class="stage-topline">
+                <span>Reference Stage @stage.Sequence</span>
+                <span class="status-pill">@stage.CheckpointStatus</span>
+            </div>
+            <div class="agent-pair">
+                <div>
+                    <h2>@stage.ProducerAgent</h2>
+                    <p>@stage.ProducerPurpose</p>
+                    <strong>@stage.ProducerStatus</strong>
+                </div>
+                <div class="handoff-arrow">-&gt;</div>
+                <div>
+                    <h2>@stage.CheckpointAgent</h2>
+                    <p>@stage.CheckpointPurpose</p>
+                    <strong>@stage.CheckpointStatus</strong>
+                </div>
+            </div>
+            <a class="output-link" asp-action="Deliverable" asp-route-file="@stage.OutputName">Open @stage.OutputName</a>
+        </article>
+    }
+</section>
+
+<section class="workflow-columns">
+    <div>
+        <h2>Stored Deliverables</h2>
+        <div class="deliverable-list">
+            @foreach (var deliverable in Model.Deliverables)
+            {
+                <a class="deliverable-row" asp-action="Deliverable" asp-route-file="@deliverable.Path">
+                    <span>
+                        <strong>@deliverable.Name</strong>
+                        <small>@deliverable.Description</small>
+                    </span>
+                    <em>@deliverable.Status</em>
+                </a>
+            }
+        </div>
+    </div>
+
+    <div>
+        <h2>Original Run Timeline</h2>
+        <ol class="timeline">
+            @foreach (var item in Model.Timeline)
+            {
+                <li>
+                    <strong>@item.Agent</strong>
+                    <span>@item.Action</span>
+                    <em>@item.Status</em>
+                </li>
+            }
+        </ol>
+    </div>
+</section>
+
+<script>
+    const form = document.getElementById("agentRunForm");
+    const requestText = document.getElementById("requestText");
+    const legacyCode = document.getElementById("legacyCode");
+    const runButton = document.getElementById("runAgentsButton");
+    const runTitle = document.getElementById("runTitle");
+    const runBadge = document.getElementById("runBadge");
+    const progressTrack = document.getElementById("progressTrack");
+    const progressBar = document.getElementById("progressBar");
+    const agentConsole = document.getElementById("agentConsole");
+    const artifactPreview = document.getElementById("artifactPreview");
+    const nextActions = document.getElementById("nextActions");
+
+    const presets = {
+        customer: {
+            prompt: "Migrate the PL/I customer maintenance transaction to .NET and produce BRD, design, code, test plan, and test cases.",
+            code: "CUSTSRCH CUSTOMER SEARCH\nCUSTDTL CUSTOMER DETAILS\nCUSTCONF UPDATE CONFIRMATION\nCUSTOMER_ID NAME STATUS BALANCE NEW_STATUS\nPF3=Exit Enter=Search PF5=Update Enter=New Search"
+        },
+        employee: {
+            prompt: "Reverse engineer an employee inquiry and status update PL/I transaction into a .NET MVC application with full agent checkpoints.",
+            code: "EMPSRCH EMPLOYEE SEARCH\nEMPDTL EMPLOYEE DETAILS\nEMPCONF STATUS UPDATE CONFIRMATION\nEMPLOYEE_ID NAME DEPARTMENT STATUS NEW_STATUS\nPF3=Back Enter=Search PF5=Update"
+        },
+        account: {
+            prompt: "Analyze an account inquiry mainframe transaction and create a .NET modernization package with BRD, TDD, code blueprint, and tests.",
+            code: "ACCTINQ ACCOUNT INQUIRY\nACCTDTL ACCOUNT DETAILS\nACCOUNT_ID CUSTOMER_NAME BALANCE STATUS\nPF3=Exit Enter=Search"
+        }
+    };
+
+    document.querySelectorAll("[data-preset]").forEach((button) => {
+        button.addEventListener("click", () => {
+            const preset = presets[button.dataset.preset];
+            requestText.value = preset.prompt;
+            legacyCode.value = preset.code;
+        });
+    });
+
+    form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        runButton.disabled = true;
+        runButton.textContent = "Agents Running...";
+        runBadge.textContent = "Running";
+        runTitle.textContent = "Starting agent workflow";
+        progressTrack.classList.add("waiting");
+        progressBar.style.width = "";
+        agentConsole.innerHTML = "";
+        artifactPreview.innerHTML = "";
+        nextActions.innerHTML = "";
+
+        const waitingCard = document.createElement("article");
+        waitingCard.className = "console-card";
+        waitingCard.innerHTML = `
+            <div class="console-card-top">
+                <span>Ollama</span>
+                <strong>Working</strong>
+            </div>
+            <p id="waitingMessage">Contacting local Ollama. The first run can take 30-120 seconds while the model loads.</p>
+            <ul>
+                <li>Do not refresh this page while agents are running.</li>
+                <li>Ensure Ollama is running and the model is pulled locally.</li>
+            </ul>
+        `;
+        agentConsole.appendChild(waitingCard);
+
+        const waitingStartedAt = Date.now();
+        const waitingMessages = [
+            "Contacting local Ollama. The first run can take 30-120 seconds while the model loads.",
+            "Ollama is generating the migration workflow. Large local models can take a minute or more.",
+            "Still working. If this is your first run, Ollama may be loading the model into memory.",
+            "Almost there. The UI will update as soon as Ollama returns the agent results."
+        ];
+        let waitingMessageIndex = 0;
+        const waitingMessageElement = document.getElementById("waitingMessage");
+        const waitingTimer = window.setInterval(() => {
+            const elapsedSeconds = Math.floor((Date.now() - waitingStartedAt) / 1000);
+            waitingMessageIndex = Math.min(
+                waitingMessages.length - 1,
+                Math.floor(elapsedSeconds / 15)
+            );
+            if (waitingMessageElement) {
+                waitingMessageElement.textContent = `${waitingMessages[waitingMessageIndex]} (${elapsedSeconds}s elapsed)`;
+            }
+            runTitle.textContent = `Waiting for Ollama (${elapsedSeconds}s)`;
+        }, 1000);
+
+        const preventNavigation = (navigationEvent) => {
+            navigationEvent.preventDefault();
+            navigationEvent.returnValue = "Agents are still running. Leaving this page will cancel the workflow.";
+        };
+        window.addEventListener("beforeunload", preventNavigation);
+
+        try {
+            const response = await fetch("/MigrationWorkflow/Run", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    requestText: requestText.value,
+                    legacyCode: legacyCode.value
+                })
+            });
+
+            const responseText = await response.text();
+
+            if (!responseText.trim()) {
+                throw new Error(`Server returned an empty response with HTTP ${response.status}.`);
+            }
+
+            let result;
+            try {
+                result = JSON.parse(responseText);
+            } catch {
+                throw new Error(`Server returned non-JSON with HTTP ${response.status}: ${responseText.slice(0, 500)}`);
+            }
+
+            progressTrack.classList.remove("waiting");
+            agentConsole.innerHTML = "";
+            runTitle.textContent = `${result.runId} - ${result.domain} / ${result.transactionName} - ${result.providerMode}`;
+
+            for (let index = 0; index < result.steps.length; index++) {
+                const step = result.steps[index];
+                await delay(420);
+                addAgentStep(step);
+                progressBar.style.width = `${Math.round(((index + 1) / result.steps.length) * 100)}%`;
+            }
+
+            renderArtifacts(result.artifacts);
+            renderNextActions(result.nextActions);
+            if (result.savedRunPath) {
+                const saved = document.createElement("article");
+                saved.className = "console-card pass";
+                saved.innerHTML = `<div class="console-card-top"><span>Run Artifact Store</span><strong>Saved</strong></div><p>${escapeHtml(result.savedRunPath)}</p>`;
+                agentConsole.appendChild(saved);
+            }
+            runBadge.textContent = result.steps.some((step) => step.status === "Fail") ? "Needs Review" : "Completed";
+        } catch (error) {
+            progressTrack.classList.remove("waiting");
+            progressBar.style.width = "0";
+            runBadge.textContent = "Failed";
+            runTitle.textContent = "Workflow did not complete";
+            const message = error.name === "AbortError"
+                ? "The request was cancelled. Do not refresh or leave the page while Ollama is running."
+                : error.message;
+            agentConsole.innerHTML = `<article class="console-card fail"><p>${escapeHtml(message)}</p></article>`;
+        } finally {
+            window.clearInterval(waitingTimer);
+            window.removeEventListener("beforeunload", preventNavigation);
+            runButton.disabled = false;
+            runButton.textContent = "Run Agent Workflow";
+        }
+    });
+
+    function addAgentStep(step) {
+        const card = document.createElement("article");
+        card.className = `console-card ${statusClass(step.status)}`;
+
+        const evidence = step.evidence.map((item) => `<li>${escapeHtml(item)}</li>`).join("");
+        card.innerHTML = `
+            <div class="console-card-top">
+                <span>${step.sequence}. ${escapeHtml(step.agentName)}</span>
+                <strong>${escapeHtml(step.status)}</strong>
+            </div>
+            <small>${escapeHtml(step.agentType)}</small>
+            <p>${escapeHtml(step.finding)}</p>
+            <ul>${evidence}</ul>
+        `;
+
+        agentConsole.appendChild(card);
+        card.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+
+    function renderArtifacts(artifacts) {
+        artifactPreview.innerHTML = artifacts.map((artifact) => `
+            <div class="artifact-card ${statusClass(artifact.status)}">
+                <div>
+                    <strong>${escapeHtml(artifact.name)}</strong>
+                    <em>${escapeHtml(artifact.status)}</em>
+                </div>
+                <p>${escapeHtml(artifact.content)}</p>
+            </div>
+        `).join("");
+    }
+
+    function renderNextActions(actions) {
+        nextActions.innerHTML = actions.map((action) => `<li><span>${escapeHtml(action)}</span></li>`).join("");
+    }
+
+    function statusClass(status) {
+        return status.toLowerCase().replaceAll(" ", "-");
+    }
+
+    function escapeHtml(value) {
+        return String(value)
+            .replaceAll("&", "&amp;")
+            .replaceAll("<", "&lt;")
+            .replaceAll(">", "&gt;")
+            .replaceAll('"', "&quot;")
+            .replaceAll("'", "&#039;");
+    }
+
+    function delay(milliseconds) {
+        return new Promise((resolve) => setTimeout(resolve, milliseconds));
+    }
+</script>

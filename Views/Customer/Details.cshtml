@@ -1,0 +1,36 @@
+@model Pl1MigrationDemo.Models.Customer
+
+<section class="terminal-panel">
+    <div class="screen-header">
+        <span>TRANSACTION: CUST</span>
+        <span>SCREEN 2 OF 3</span>
+    </div>
+
+    <h1>Customer Details</h1>
+
+    <form method="post" asp-action="Update" class="screen-form">
+        <input type="hidden" name="customerId" value="@Model.CustomerId" />
+
+        <dl class="details-grid">
+            <dt>Customer ID</dt>
+            <dd>@Model.CustomerId</dd>
+
+            <dt>Name</dt>
+            <dd>@Model.Name</dd>
+
+            <dt>Status</dt>
+            <dd>@Model.Status</dd>
+
+            <dt>Balance</dt>
+            <dd>@Model.Balance.ToString("C")</dd>
+        </dl>
+
+        <label for="newStatus">New Status</label>
+        <input id="newStatus" name="newStatus" value="@Model.Status" maxlength="10" />
+
+        <div class="actions">
+            <button type="submit">PF5 = Update</button>
+            <a asp-action="Search">PF3 = Back</a>
+        </div>
+    </form>
+</section>

@@ -1,0 +1,18 @@
+/* PL/I CICS transaction screen 2: Customer Details */
+
+CUSTDTL-SCREEN:
+   PUT SKIP LIST('--------------------------------------------------');
+   PUT SKIP LIST('              CUSTOMER DETAILS');
+   PUT SKIP LIST('--------------------------------------------------');
+   PUT SKIP LIST('');
+   PUT SKIP LIST('Customer ID : ' || CUSTOMER_ID);
+   PUT SKIP LIST('Name        : ' || CUSTOMER_NAME);
+   PUT SKIP LIST('Status      : ' || CUSTOMER_STATUS);
+   PUT SKIP LIST('Balance     : ' || BALANCE);
+   PUT SKIP LIST('');
+   PUT SKIP LIST('New Status  : ________');
+   PUT SKIP LIST('');
+   PUT SKIP LIST('PF3=Back                         PF5=Update');
+   PUT SKIP LIST('--------------------------------------------------');
+
+/* The new status is received into NEW_STATUS and used by the update step. */
