@@ -6,13 +6,17 @@ namespace Pl1MigrationDemo.Services;
 
 public class LlmAgentWorkflowEngine : IAgentWorkflowEngine
 {
+    private const string CodeCheckpointAgentName = "Code Checkpoint Agent";
+
     private readonly ILlmClient _llmClient;
     private readonly IConfiguration _configuration;
+    private readonly ICodeVerificationService _codeVerificationService;
 
-    public LlmAgentWorkflowEngine(ILlmClient llmClient, IConfiguration configuration)
+    public LlmAgentWorkflowEngine(ILlmClient llmClient, IConfiguration configuration, ICodeVerificationService codeVerificationService)
     {
         _llmClient = llmClient;
         _configuration = configuration;
+        _codeVerificationService = codeVerificationService;
     }
 
     public async Task<MigrationRunResult> RunAsync(MigrationRunInput input, CancellationToken cancellationToken)
@@ -69,6 +73,17 @@ public class LlmAgentWorkflowEngine : IAgentWorkflowEngine
         for (var index = 0; index < agentDefinitions.Count; index++)
         {
             var agent = agentDefinitions[index];
+
+            if (agent.Name.Equals(CodeCheckpointAgentName, StringComparison.OrdinalIgnoreCase))
+            {
+                var (deterministicStep, deterministicArtifact) = await BuildDeterministicCodeCheckpointAsync(
+                    index + 1, request, legacyCode, cancellationToken);
+
+                run.Steps.Add(deterministicStep);
+                run.Artifacts.Add(deterministicArtifact);
+                continue;
+            }
+
             var response = await RunAgentSafelyAsync(agent, request, legacyCode, run, cancellationToken);
 
             run.Steps.Add(new AgentRunStep
@@ -164,6 +179,10 @@ public class LlmAgentWorkflowEngine : IAgentWorkflowEngine
             run.NextActions = llmRun.NextActions.Count == 0
                 ? ["Review generated artifacts and checkpoint failures."]
                 : llmRun.NextActions;
+
+            await ApplyDeterministicCodeCheckpointAsync(run, request, legacyCode, cancellationToken);
+            FlagMissingAgents(run);
+
             return run;
         }
         catch (Exception ex)
@@ -194,6 +213,58 @@ public class LlmAgentWorkflowEngine : IAgentWorkflowEngine
             ];
             return run;
         }
+    }
+
+    private static readonly string[] RequiredAgentNames =
+    [
+        "Legacy Intake Agent",
+        "BRD Producer Agent",
+        "BRD Checkpoint Agent",
+        "Technical Design Agent",
+        "Technical Design Checkpoint Agent",
+        "Converted Code Agent",
+        CodeCheckpointAgentName,
+        "Test Plan Agent",
+        "Test Case Agent",
+        "Final Readiness Checkpoint Agent"
+    ];
+
+    /// <summary>
+    /// Small local models can truncate a single-call response before producing all 10 agents.
+    /// Rather than silently showing only whichever agents made it through, this makes the gap
+    /// visible so it doesn't look like the workflow quietly finished early.
+    /// </summary>
+    private static void FlagMissingAgents(MigrationRunResult run)
+    {
+        var presentNames = run.Steps
+            .Select(step => step.AgentName.Trim())
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var missing = RequiredAgentNames.Where(name => !presentNames.Contains(name)).ToList();
+
+        if (missing.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var name in missing)
+        {
+            run.Steps.Add(new AgentRunStep
+            {
+                Sequence = Array.IndexOf(RequiredAgentNames, name) + 1,
+                AgentName = name,
+                AgentType = "Unknown",
+                Status = "Needs Review",
+                Finding = "This agent did not appear in the LLM's response. The single-call response was likely truncated before this agent's output was produced.",
+                Evidence =
+                [
+                    "Try increasing Ollama's num_predict/num_ctx, using a more capable local model, or switching to AGENT_WORKFLOW_MODE=multi so each agent gets its own dedicated call."
+                ]
+            });
+        }
+
+        run.Steps = run.Steps.OrderBy(step => step.Sequence).ToList();
+        run.Summary = BuildSummary(run);
     }
 
     private static MigrationRunResult ParseSingleCallResponse(string raw)
@@ -403,6 +474,181 @@ public class LlmAgentWorkflowEngine : IAgentWorkflowEngine
         return start >= 0 && end > start ? trimmed[start..(end + 1)] : trimmed;
     }
 
+    /// <summary>
+    /// Re-runs the Code Checkpoint Agent's verdict using real ground-truth checks (a real dotnet build,
+    /// real execution of the customer search/update logic, and static layering checks) instead of trusting
+    /// whatever Pass/Fail the LLM produced in the single-call JSON response. The deterministic result
+    /// always wins; the LLM-authored step (if any) is replaced.
+    /// </summary>
+    private async Task ApplyDeterministicCodeCheckpointAsync(MigrationRunResult run, string request, string legacyCode, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var existingIndex = run.Steps.FindIndex(step =>
+                step.AgentName.Equals(CodeCheckpointAgentName, StringComparison.OrdinalIgnoreCase));
+            var sequence = existingIndex >= 0 ? run.Steps[existingIndex].Sequence : run.Steps.Count + 1;
+
+            var (deterministicStep, deterministicArtifact) = await BuildDeterministicCodeCheckpointAsync(
+                sequence, request, legacyCode, cancellationToken);
+
+            if (existingIndex >= 0)
+            {
+                run.Steps[existingIndex] = deterministicStep;
+            }
+            else
+            {
+                run.Steps.Add(deterministicStep);
+            }
+
+            var existingArtifactIndex = run.Artifacts.FindIndex(artifact =>
+                artifact.Name.Contains("Code Checkpoint", StringComparison.OrdinalIgnoreCase)
+                || artifact.Name.Contains("Code-Checkpoint", StringComparison.OrdinalIgnoreCase));
+
+            if (existingArtifactIndex >= 0)
+            {
+                run.Artifacts[existingArtifactIndex] = deterministicArtifact;
+            }
+            else
+            {
+                run.Artifacts.Add(deterministicArtifact);
+            }
+
+            run.Summary = BuildSummary(run);
+        }
+        catch (Exception ex)
+        {
+            // If ground-truth verification itself blows up (e.g. dotnet not on PATH), surface that
+            // honestly as a Needs Review step rather than silently falling back to the LLM's opinion.
+            run.Steps.Add(new AgentRunStep
+            {
+                Sequence = run.Steps.Count + 1,
+                AgentName = CodeCheckpointAgentName,
+                AgentType = "Checkpoint",
+                Status = "Needs Review",
+                Finding = "Deterministic ground-truth verification could not run.",
+                Evidence = [$"{ex.GetType().Name}: {ex.Message}"]
+            });
+        }
+    }
+
+    /// <summary>
+    /// Runs real ground-truth checks and produces the Code Checkpoint Agent's step + artifact.
+    /// The LLM is only asked for a short narrative explanation of results it cannot contradict;
+    /// it never decides Pass/Fail itself.
+    /// </summary>
+    private async Task<(AgentRunStep Step, GeneratedArtifactPreview Artifact)> BuildDeterministicCodeCheckpointAsync(
+        int sequence, string request, string legacyCode, CancellationToken cancellationToken)
+    {
+        var report = await _codeVerificationService.VerifyAsync(cancellationToken);
+        var evidence = BuildGroundTruthEvidence(report);
+
+        var fallbackFinding = report.OverallStatus switch
+        {
+            "Pass" => "All deterministic ground-truth checks passed: the application builds, customer search/update behavior matched expected results, and layering rules were respected.",
+            "Fail" => "One or more deterministic ground-truth checks failed. See the evidence for the specific build, functional, or layering failure.",
+            _ => "The build and functional behavior checks passed, but a layering review item needs attention before this is fully ready."
+        };
+
+        var narrative = await TryGetLlmNarrativeAsync(request, legacyCode, report, evidence, cancellationToken);
+
+        var step = new AgentRunStep
+        {
+            Sequence = sequence,
+            AgentName = CodeCheckpointAgentName,
+            AgentType = "Checkpoint",
+            Status = report.OverallStatus,
+            Finding = string.IsNullOrWhiteSpace(narrative) ? fallbackFinding : narrative,
+            Evidence = evidence
+        };
+
+        var artifactContent = "# Code Checkpoint - Ground Truth Verification\n\n"
+            + $"**Overall status:** {report.OverallStatus}\n\n"
+            + $"{step.Finding}\n\n"
+            + "## Evidence\n\n"
+            + string.Join("\n", evidence.Select(line => $"- {line}"));
+
+        var artifact = new GeneratedArtifactPreview
+        {
+            Name = "Code-Checkpoint-Ground-Truth",
+            Status = report.OverallStatus,
+            Content = artifactContent
+        };
+
+        return (step, artifact);
+    }
+
+    private async Task<string> TryGetLlmNarrativeAsync(
+        string request, string legacyCode, CodeVerificationReport report, List<string> evidence, CancellationToken cancellationToken)
+    {
+        try
+        {
+            const string systemPrompt = """
+                You are the Code Checkpoint Agent in a PL/I to .NET migration factory.
+                Real, deterministic ground-truth checks have already been run against the actual application:
+                a real "dotnet build", real execution of the customer search/update logic against known test
+                data, and static layering checks. These results are authoritative. You must not contradict
+                them, invent a different Pass/Fail outcome, or claim something passed that the evidence shows
+                failed. Your only job is to write a short (2-4 sentence) plain-language explanation of what
+                the ground-truth results mean for migration readiness.
+                Return strict JSON only with this exact shape: {"narrative": "..."}
+                """;
+
+            var userPrompt = $"""
+                Migration request:
+                {request}
+
+                Legacy PL/I / BMS / mainframe input:
+                {legacyCode}
+
+                Ground-truth verification results (authoritative, do not contradict):
+                {string.Join("\n", evidence)}
+
+                Overall deterministic status: {report.OverallStatus}
+                """;
+
+            var raw = await _llmClient.GenerateAsync(systemPrompt, userPrompt, cancellationToken);
+            var json = ExtractJson(raw);
+            using var document = JsonDocument.Parse(json);
+
+            return document.RootElement.TryGetProperty("narrative", out var narrativeProperty)
+                ? narrativeProperty.GetString() ?? ""
+                : "";
+        }
+        catch
+        {
+            // The narrative is a nice-to-have. The deterministic status and evidence stand on their own
+            // even if the LLM is unavailable or returns something unparseable.
+            return "";
+        }
+    }
+
+    private static List<string> BuildGroundTruthEvidence(CodeVerificationReport report)
+    {
+        var evidence = new List<string>
+        {
+            $"[Build] {(report.BuildResult.Passed ? "PASS" : "FAIL")} (exit code {report.BuildResult.ExitCode}): {TruncateForEvidence(report.BuildResult.Output)}"
+        };
+
+        evidence.AddRange(report.FunctionalChecks.Select(check =>
+            $"[Functional] {(check.Passed ? "PASS" : "FAIL")} - {check.Name}. Expected: {check.Expected}. Actual: {check.Actual}"));
+
+        evidence.AddRange(report.LayeringChecks.Select(check =>
+            $"[Layering] {(check.Passed ? "PASS" : "FAIL")} - {check.Name}. {check.Detail}"));
+
+        return evidence;
+    }
+
+    private static string TruncateForEvidence(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return "(no build output captured)";
+        }
+
+        const int max = 600;
+        return text.Length <= max ? text : text[..max] + "...";
+    }
+
     private static List<AgentDefinition> BuildAgentDefinitions()
     {
         return
@@ -413,7 +659,7 @@ public class LlmAgentWorkflowEngine : IAgentWorkflowEngine
             new("Technical Design Agent", "Producer", "Create the target .NET technical design, including architecture, component mapping, data flow, validation, errors, security, and deployment."),
             new("Technical Design Checkpoint Agent", "Checkpoint", "Review the technical design for implementability, BRD alignment, production gaps, and unsupported assumptions."),
             new("Converted Code Agent", "Producer", "Generate a concise .NET implementation blueprint and representative C# / Razor code for the supplied transaction."),
-            new("Code Checkpoint Agent", "Checkpoint", "Review generated code for build feasibility, separation of concerns, missing validation, security gaps, and legacy parity risks."),
+            new(CodeCheckpointAgentName, "Checkpoint", "Review generated code for build feasibility, separation of concerns, missing validation, security gaps, and legacy parity risks."),
             new("Test Plan Agent", "Producer", "Create the test plan covering functional, negative, migration parity, regression, integration, UAT, and non-functional areas."),
             new("Test Case Agent", "Producer", "Create executable test cases with IDs, data, steps, and expected results."),
             new("Final Readiness Checkpoint Agent", "Checkpoint", "Decide whether the migration package is ready for review. List blocking and non-blocking gaps.")
