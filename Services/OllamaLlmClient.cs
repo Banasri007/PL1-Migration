@@ -31,7 +31,9 @@ public class OllamaLlmClient : ILlmClient
             format = "json",
             options = new
             {
-                temperature = 0.2
+                temperature = 0.2,
+                num_predict = 8192,
+                num_ctx = 8192
             }
         };
 
