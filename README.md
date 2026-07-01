@@ -1,4 +1,4 @@
-# PL/I to .NET Transaction Demo
+# PL/I to .NET Transaction
 
 This is a small ASP.NET Core MVC app that simulates a three-screen PL/I/CICS customer maintenance transaction.
 
