@@ -8,6 +8,7 @@ builder.Services.AddSingleton<CustomerRepository>();
 builder.Services.AddScoped<CustomerService>();
 builder.Services.AddHttpClient<ILlmClient, OllamaLlmClient>()
     .ConfigureHttpClient(client => client.Timeout = TimeSpan.FromMinutes(10));
+builder.Services.AddScoped<ICodeVerificationService, CodeVerificationService>();
 builder.Services.AddScoped<IAgentWorkflowEngine, LlmAgentWorkflowEngine>();
 
 var app = builder.Build();
